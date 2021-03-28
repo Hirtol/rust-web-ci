@@ -1,3 +1,23 @@
+FROM --platform=$BUILDPLATFORM rust:latest as fetcher
+
+WORKDIR /
+
+# Trunk
+RUN git clone https://github.com/thedodd/trunk
+WORKDIR trunk/
+RUN git checkout tags/v0.10.0 && \
+    mkdir -p .cargo && \
+    cargo vendor > /trunk/.cargo/config
+
+FROM rust:latest as builder
+
+WORKDIR /
+
+COPY --from=fetcher /trunk/ /trunk/
+
+RUN cargo install --path /trunk/ --offline
+
+
 FROM rust:latest
 
 RUN apt-get update
@@ -6,3 +26,4 @@ RUN apt -y install npm
 RUN rustup target add wasm32-unknown-unknown
 
 COPY ./artifacts/ /usr/local/cargo/bin
+COPY --from=builder /usr/local/cargo/bin/trunk /usr/local/cargo/bin

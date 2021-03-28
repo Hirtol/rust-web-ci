@@ -46,12 +46,12 @@ jobs:
             ${{ runner.os }}-cargo-build-${{ matrix.config.target }}
             ${{ runner.os }}-cargo-build
 
-      - name: Install trunk & wasm-bindgen-cli
+      - name: Install wasm-bindgen-cli
         uses: actions-rs/cargo@v1
         with:
           use-cross: ${{ matrix.config.cross }}
           command: install
-          args: trunk wasm-bindgen-cli --target ${{ matrix.config.target }}
+          args: wasm-bindgen-cli --target ${{ matrix.config.target }}
 
       - name: Install SQLX
         run: |
@@ -59,9 +59,9 @@ jobs:
           cd sqlx
           if ${{ matrix.config.cross }}
           then
-            cross install --git https://github.com/Hirtol/sqlx --target ${{ matrix.config.target }}
+            cross install --git https://github.com/Hirtol/sqlx --target ${{ matrix.config.target }} sqlx-cli
           else
-            cargo install --git https://github.com/Hirtol/sqlx --target ${{ matrix.config.target }}
+            cargo install --git https://github.com/Hirtol/sqlx --target ${{ matrix.config.target }} sqlx-cli
           fi
           cd ..
 
@@ -69,7 +69,6 @@ jobs:
         run: |
           mkdir artifacts
           cp ~/.cargo/bin/sqlx artifacts/
-          cp ~/.cargo/bin/trunk artifacts/
           cp ~/.cargo/bin/wasm-bindgen artifacts/
           cp ~/.cargo/bin/wasm-bindgen-test-runner artifacts/
           cp ~/.cargo/bin/wasm2es6js artifacts/
