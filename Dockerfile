@@ -35,12 +35,17 @@ COPY --from=fetcher /trunk/ /trunk/
 COPY --from=fetcher /wasm-bindgen/ /wasm-bindgen/
 COPY --from=fetcher /sqlx/ /sqlx/
 
-RUN cargo install --path /trunk/ --offline
+# Update the permissions since our dependencies come from a different architecture (possibly)
+RUN chown -R root:root /trunk/
+RUN chown -R root:root /wasm-bindgen/
+RUN chown -R root:root /sqlx/
 
 RUN cargo install --path /wasm-bindgen/crates/cli --offline
 
 WORKDIR /sqlx/
 RUN cargo build -p sqlx-cli --release --offline && mv /sqlx/target/release/sqlx /usr/local/cargo/bin
+
+RUN cargo install --path /trunk/ --offline
 
 FROM rust:latest
 
