@@ -8,14 +8,97 @@ on:
       - 'v*'
 
 jobs:
+  build-artifacts:
+    name: Build release assets
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          # Linux
+          - { os: ubuntu-18.04, toolchain: stable, target: x86_64-unknown-linux-gnu, cross: false, arch: linux/amd64 }
+          - { os: ubuntu-18.04, toolchain: stable, target: aarch64-unknown-linux-gnu, cross: true, arch: linux/arm64 }
+          # Raspberry Pi
+          - { os: ubuntu-18.04, toolchain: stable, target: armv7-unknown-linux-gnueabihf, cross: true, arch: linux/arm/v7 }
+
+    steps:
+      - uses: actions/checkout@master
+
+      - uses: actions-rs/toolchain@v1
+        id: rust-toolchain
+        with:
+          toolchain: ${{ matrix.config.toolchain }}
+          target: ${{ matrix.config.target }}
+          profile: minimal
+          override: true
+          default: true
+
+      - name: Cache Cargo Artifacts
+        uses: actions/cache@v2
+        continue-on-error: true
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-build-${{ matrix.config.target }}-artifacts-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-${{ matrix.config.target }}
+            ${{ runner.os }}-cargo-build
+
+      - name: Install trunk & wasm-bindgen-cli
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: ${{ matrix.config.cross }}
+          command: install
+          args: trunk wasm-bindgen-cli --target ${{ matrix.config.target }}
+
+      - name: Install SQLX
+        run: |
+          git clone https://github.com/Hirtol/sqlx
+          cd sqlx
+          if ${{ matrix.config.cross }}
+          then
+            cross install --git https://github.com/Hirtol/sqlx --target ${{ matrix.config.target }}
+          else
+            cargo install --git https://github.com/Hirtol/sqlx --target ${{ matrix.config.target }}
+          fi
+          cd ..
+
+      - name: Tar bin files
+        run: |
+          mkdir artifacts
+          cp ~/.cargo/bin/sqlx artifacts/
+          cp ~/.cargo/bin/trunk artifacts/
+          cp ~/.cargo/bin/wasm-bindgen artifacts/
+          cp ~/.cargo/bin/wasm-bindgen-test-runner artifacts/
+          cp ~/.cargo/bin/wasm2es6js artifacts/
+          tar -cvf artifacts.tar artifacts
+
+      - name: Upload backend binary artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: artifacts
+          path: artifacts.tar
+
   build-docker:
     name: Build Docker image and push
     runs-on: ubuntu-latest
+    needs: build-artifacts
     env:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v2
+
+      - name: Download bin atrifacts
+        uses: actions/download-artifact@v2
+        with:
+          name: artifacts
+
+      - name: Untar artifacts
+        run: |
+          tar -xvf artifacts.tar
 
       - name: Docker meta
         id: docker_meta
@@ -51,7 +134,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: ./Dockerfile
+          file: ./Dockerfile.ci
           tags: ${{ steps.docker_meta.outputs.tags }}
           labels: ${{ steps.docker_meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64,linux/arm/v7

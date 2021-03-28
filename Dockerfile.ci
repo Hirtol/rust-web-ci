@@ -1,0 +1,8 @@
+FROM rust:latest
+
+RUN apt-get update
+RUN apt -y install npm
+
+RUN rustup target add wasm32-unknown-unknown
+
+COPY ./artifacts/ /usr/local/cargo/bin
