@@ -1,0 +1,10 @@
+/target
+.idea/
+.cargo/
+dist/
+frontend/client/dist/
+*.db*
+.env
+/data/
+load_tests/
+node_modules/
