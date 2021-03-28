@@ -16,10 +16,10 @@ jobs:
       matrix:
         config:
           # Linux
-          - { os: ubuntu-18.04, toolchain: stable, target: x86_64-unknown-linux-gnu, cross: false, arch: linux/amd64 }
-          - { os: ubuntu-18.04, toolchain: stable, target: aarch64-unknown-linux-gnu, cross: true, arch: linux/arm64 }
+          - { os: ubuntu-18.04, toolchain: stable, target: x86_64-unknown-linux-gnu, cross: false }
+          - { os: ubuntu-18.04, toolchain: stable, target: aarch64-unknown-linux-gnu, cross: true }
           # Raspberry Pi
-          - { os: ubuntu-18.04, toolchain: stable, target: armv7-unknown-linux-gnueabihf, cross: true, arch: linux/arm/v7 }
+          - { os: ubuntu-18.04, toolchain: stable, target: armv7-unknown-linux-gnueabihf, cross: true }
 
     steps:
       - uses: actions/checkout@master
@@ -73,17 +73,24 @@ jobs:
           cp ~/.cargo/bin/wasm-bindgen artifacts/
           cp ~/.cargo/bin/wasm-bindgen-test-runner artifacts/
           cp ~/.cargo/bin/wasm2es6js artifacts/
-          tar -cvf artifacts.tar artifacts
+          tar -cvf artifacts-${{ matrix.config.target }}.tar artifacts
 
       - name: Upload backend binary artifact
         uses: actions/upload-artifact@v2
         with:
-          name: artifacts
-          path: artifacts.tar
+          name: artifacts-${{ matrix.config.target }}
+          path: artifacts-${{ matrix.config.target }}.tar
 
   build-docker:
     name: Build Docker image and push
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - { target: x86_64-unknown-linux-gnu, arch: linux/amd64 }
+          - { target: aarch64-unknown-linux-gnu, arch: linux/arm64 }
+          - { target: armv7-unknown-linux-gnueabihf, arch: linux/arm/v7 }
     needs: build-artifacts
     env:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -94,11 +101,11 @@ jobs:
       - name: Download bin atrifacts
         uses: actions/download-artifact@v2
         with:
-          name: artifacts
+          name: artifacts-${{ matrix.config.target }}
 
       - name: Untar artifacts
         run: |
-          tar -xvf artifacts.tar
+          tar -xvf artifacts-${{ matrix.config.target }}.tar
 
       - name: Docker meta
         id: docker_meta
@@ -137,7 +144,7 @@ jobs:
           file: ./Dockerfile.ci
           tags: ${{ steps.docker_meta.outputs.tags }}
           labels: ${{ steps.docker_meta.outputs.labels }}
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: ${{ matrix.config.arch }}
           push: true
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new
