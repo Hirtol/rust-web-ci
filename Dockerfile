@@ -6,7 +6,7 @@ WORKDIR /
 # Trunk
 RUN git clone https://github.com/thedodd/trunk
 WORKDIR trunk/
-RUN git checkout tags/v0.10.0 && \
+RUN git checkout tags/v0.11.0 && \
     mkdir -p .cargo && \
     cargo vendor > /trunk/.cargo/config
 
@@ -15,7 +15,7 @@ WORKDIR /
 # Wasm-bindgen
 RUN git clone https://github.com/rustwasm/wasm-bindgen
 WORKDIR wasm-bindgen/
-RUN git checkout tags/0.2.72 && \
+RUN git checkout tags/0.2.74 && \
     mkdir -p .cargo && \
     cargo vendor > /wasm-bindgen/.cargo/config
 
